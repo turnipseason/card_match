@@ -30,6 +30,108 @@ class DatabaseConnection():
         cursor.close()
         return rows
 
+    def get_user_cashback(self, passport_id: str):
+        response = ""
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT card_id FROM client_card WHERE passport_id = %s", (passport_id,))
+        cards = cursor.fetchall()
+
+        for card in cards:
+            card_id = card[0]  # Берем card_id из запроса
+
+            cursor.execute(
+                """
+                SELECT 
+                    ccc.passport_id,
+                    ccc.card_id,
+                    c.name AS card_name,
+                    cb.name AS cashback_category_name,
+                    ccc.cashback_rate,
+                    ccc.created_at
+                FROM client_card_cashback ccc
+                JOIN cashback_category cb ON ccc.cashback_category_id = cb.id
+                JOIN client_card cc ON ccc.passport_id = cc.passport_id AND ccc.card_id = cc.card_id
+                JOIN card c ON cc.card_id = c.id
+                WHERE ccc.passport_id = %s AND ccc.card_id = %s;
+                """, (passport_id, card_id)
+            )
+
+            cashbacks = cursor.fetchall()
+
+            if not cashbacks:
+                response += f"\n💳 Карта : Нет кешбэка\n"
+            else:
+                response += f"\n💳 Карта {cashbacks[0][2]} :\n"
+                for cashback in cashbacks:
+                    response += (f"🔹 {cashback[3]} — {cashback[4]}%\n")  # Категория + кешбэк%
+
+            return response
+
+    def get_user_preferences(self, passport_id: str):
+        """
+        Запрашивает информацию о пользователе из БД.
+
+        Args:
+            user_passport (str): Серия и номер паспорта клиента.
+
+        Returns:
+            dict: Информация о пользователе.
+        """
+        cursor = self.connection.cursor()
+        rows = None
+        try:
+            cursor.execute("""
+                SELECT first_name, last_name, prefers_cashback, prefers_bonus 
+                FROM client 
+                WHERE passport_id = %s
+            """, (passport_id,))
+            client_data = cursor.fetchone()
+
+            if not client_data:
+                return {"error": "Пользователь не найден"}
+
+            first_name, last_name, prefers_cashback, prefers_bonus = client_data
+
+            cursor.execute("""
+                SELECT pc.name 
+                FROM client_card cc
+                JOIN purchase_category pc ON cc.usual_purchase = pc.id
+                WHERE cc.passport_id = %s
+                GROUP BY pc.name
+                ORDER BY COUNT(*) DESC
+                LIMIT 1
+            """, (passport_id,))
+            purchase_category = cursor.fetchone()
+            purchase_category = purchase_category[0] if purchase_category else "Не определено"
+
+            cursor.execute("""
+                SELECT DISTINCT cc.name 
+                FROM client_card_cashback ccc
+                JOIN cashback_category cc ON ccc.cashback_category_id = cc.id
+                WHERE ccc.passport_id = %s
+            """, (passport_id,))
+            cashback_categories = [row[0] for row in cursor.fetchall()]
+
+            user_info = {
+                "passport_id": passport_id,
+                "first_name": first_name,
+                "last_name": last_name,
+                "prefers_cashback": prefers_cashback,
+                "prefers_bonus": prefers_bonus,
+                "frequent_purchase_category": purchase_category,
+                "cashback_categories": cashback_categories
+            }
+
+            print(f"🔹 Данные пользователя из БД: {user_info}")
+            return user_info
+
+        except Exception as e:
+            print(f"❌ Ошибка в get_user_info: {e}")
+            # return {"error": str(e)}
+
+        finally:
+            cursor.close()
+
     def get_all_cards(self) -> list:
         """
         Возвращает все карты из таблицы card.
