@@ -6,12 +6,33 @@ from data.db_connect import DatabaseConnection
 db_con = DatabaseConnection()
 
 @tool
-def get_user_info(passport_id: str):
+def get_user_preferences(user_passport: str):
     """
-    Возвращает информацию о предпочтениях пользователя, типом самых частых транзацкий и т.д.
-    :return:
+    Получает информацию о предпочтениях пользователя, запрашивая её в БД.
+
+    Args:
+        user_passport (str): Серия и номер паспорта клиента.
+
+    Returns:
+        dict: Данные о клиенте.
     """
-    ### TODO
+    answer = db_con.get_user_preferences(user_passport)
+    return answer
+
+@tool
+def get_user_cashback(user_passport: str):
+    """
+    Получает информацию о кэшбеке, доступном пользователю, запрашивая её в БД.
+
+    Args:
+        user_passport (str): Серия и номер паспорта клиента.
+
+    Returns:
+        dict: Кэшбек по всем картам клиента.
+    """
+    answer = db_con.get_user_cashback(user_passport)
+    print("\033[92m" + "Bot requested get_user_cashback" + "\033[0m")
+    return answer
 
 @tool
 def get_all_cards() -> list:
@@ -30,6 +51,7 @@ def get_all_cards() -> list:
 def get_user_cards(user_passport: str) -> list:
     """
     Возвращай по запросу пользователя информацию обо всех используемых им картах.
+    В том числе -- конкретные условия по его картам, такие как точные расчеты по минимальной сумме за кредит.
 
     Args:
     user_passport (str): Серия и номер паспорта клиента.
