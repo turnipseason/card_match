@@ -3,8 +3,15 @@ from telebot import types
 import psycopg2
 from data.db_connect import DatabaseConnection
 from source.agent import agent
+from dotenv import load_dotenv
+import os
 
-bot = telebot.TeleBot('7826967248:AAGTLZbOpwudOBirk6-MZIiQ_oc8GhX7ph4')
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+# Загружаем переменные окружения
+load_dotenv("config/ggc_env.env")
+
+bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
 db_con = DatabaseConnection()
 
@@ -398,9 +405,11 @@ def chat_with_agent(message):
     config = {"configurable": {"thread_id": thread_id,"passport_id": passport_id}}
     print(f"\nPassport and thread config:{config}")
     try:
+        context = AIMessage(content=f"Серия и номер паспорта пользователя:{passport_id}")
+        print(f"context_message:{context}")
         response = agent.invoke({
             "messages": [
-                ("system", f"passport_id: {passport_id}"),
+                context,
                 ("user", message.text)
             ]
         }, config={"configurable": {"thread_id": thread_id}})
