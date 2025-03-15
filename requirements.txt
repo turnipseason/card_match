@@ -1,0 +1,10 @@
+langchain-gigachat
+langchain-community
+langgraph
+langgraph-checkpoint
+langgraph-cli
+langgraph-sdk
+langchain_chroma
+rapidfuzz
+psycopg2
+telebot
